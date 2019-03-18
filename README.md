@@ -1,5 +1,7 @@
 # Gomon
 
+## Not finished yet ! ! !
+
 ### Description
 This is a program which allows you to push your productivity progress by monitoring your current working directory and restarting the main.go file on changes. It is something similar like nodemon for NodeJS.
 
