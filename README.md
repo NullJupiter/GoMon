@@ -8,10 +8,10 @@ This is a program which allows you to push your productivity progress by monitor
 ### Usage
 
 
-You need to provide the binary a `-p` flag with the full path to the directory you want to monitor.
+You need to provide at least one path to a directory you want to monitor.
 
 ##### Example:
-`./gomon -p $(pwd)`
+`gomon $(pwd)`
 
 
 
@@ -25,14 +25,14 @@ The `cmd` flag is used to run another program for example which executes some ot
 `echo "Starting some stuff before entering the program...";`
 `go run *.go;`
 ##### Example:
-`./gomon -p $(pwd) -cmd "bash run.sh"`
+`gomon -cmd "bash run.sh" $(pwd)`
 
 
 
 The `r` flag is can be set to true or false. When set to `true` (by default) GoMon will recursively search through the working directory and its subdirectories for changes on files. Set to `false` GoMon will just detect changes in the working directory and will not monitor subdirectories.
 
 ##### Example:
-`./gomon -p $(pwd) -r=false`
+`gomon -r=false $(pwd)`
 
 
 ### Command Line Agruments Summary
@@ -42,7 +42,7 @@ The `r` flag is can be set to true or false. When set to `true` (by default) GoM
  - `-cmd` - [Optional] The program to be run - in case it should different from the go files given with `-p`
  - `-q` - Do not output anything to the console
 
-### Test Programs
+##### Test Programs
 
 Test programs to verify how GoMon works can be found in the folders [/test/loop](/test/loop) and [/test/once](/test/once).
 
@@ -51,8 +51,8 @@ Test programs to verify how GoMon works can be found in the folders [/test/loop]
 
 Run the test programs from the `src` folder like this:
 
- - `go run main.go -p ../test/loop/`
- - `go run main.go -p ../test/once/`
+ - `gomon ../test/loop/`
+ - `gomon ../test/once/`
 
 
 ### ToDos and known bugs
