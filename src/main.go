@@ -100,23 +100,34 @@ func findDirectories(dir string, directories *[]string) {
 func getConfig() *Config {
 	config := &Config{}
 
+	var workingDir string
+
 	// Get flags
 	command := flag.String("cmd", "", "Provide a command to execute and restart. If nothing is set, this defaults to \"go run $path/*.go\"")
-	workingDir := flag.String("p", "", "Provide the full path to your working directory")
 	recursive := flag.Bool("r", true, "Search through the working directory recursively for file changes (set to true or false")
 	quiet := flag.Bool("q", false, "Be quiet. Do not output anything to the standard output. (Errors are still displayed.)")
 	flag.Parse()
 
+	directories := flag.Args()
+
+	if len(directories) > 0 {
+		workingDir = directories[0]
+	}
+
+	// Output information if not set to quiet
 	config.Log = !*quiet
 
 	// Check if parameters are empty
-	if *workingDir == "" {
-		flag.Usage()
+	if workingDir == "" {
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage of gomon:\n\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "  gomon directory [directory...]\n\n")
+		fmt.Fprint(flag.CommandLine.Output(), "  The given directories will be watched. In case no '-cmd' is given, the .go files in the first directory will be executed with 'go run'\n\n")
+		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
 	if *command == "" {
-		files, err := filepath.Glob(filepath.Join(*workingDir, "*.go"))
+		files, err := filepath.Glob(filepath.Join(workingDir, "*.go"))
 		if err != nil {
 			log.Fatalf("Error looking for go files: %s\n", err.Error())
 		}
@@ -136,9 +147,13 @@ func getConfig() *Config {
 	config.WatchDirectories = make([]string, 0, 10)
 	if *recursive {
 		// Recursively search for folders
-		findDirectories(*workingDir, &config.WatchDirectories)
+		for _, dir := range directories {
+			findDirectories(dir, &config.WatchDirectories)
+		}
 	} else {
-		config.WatchDirectories = append(config.WatchDirectories, *workingDir)
+		for _, dir := range directories {
+			config.WatchDirectories = append(config.WatchDirectories, dir)
+		}
 	}
 
 	return config
