@@ -15,12 +15,21 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-func main() {
-	running := true
-	config := getConfig()
-	restartingCmd := startCommand(config)
+// Config is a type to configure the program.
+type Config struct {
+	WatchDirectories []string
+	Command          string
+	CommandArguments []string
+}
 
-	go killOnSignal(&running, &restartingCmd)
+// Global variables.
+var running = true
+var config = getConfig()
+var restartingCmd = startCommand()
+
+func main() {
+
+	go killOnSignal()
 
 	// Monitor file changes
 	fileWatcher, err := fsnotify.NewWatcher()
@@ -29,10 +38,9 @@ func main() {
 	}
 	defer fileWatcher.Close()
 
-	go watchFiles(&running, &fileWatcher, &restartingCmd)
+	go watchFiles(fileWatcher)
 
 	for _, dir := range config.WatchDirectories {
-		// log.Printf("Adding %v to fileWatcher\n", *workingDir)
 		err = fileWatcher.Add(dir)
 		if err != nil {
 			log.Fatal(err)
@@ -44,33 +52,24 @@ func main() {
 	<-done
 }
 
-type Config struct {
-	WatchDirectories []string
-	Command          string
-	CommandArguments []string
-}
-
-func watchFiles(running *bool, watcher *fsnotify.Watcher, restartingCmd **exec.Cmd) {
-	cmd := *restartingCmd
-
+func watchFiles(watcher *fsnotify.Watcher) {
 	for running {
 		select {
-		case event, ok := <-fileWatcher.Events:
+		case event, ok := <-watcher.Events:
 			if !ok {
 				return
 			}
 			if event.Op&fsnotify.Write == fsnotify.Write {
-				// log.Println("Modified file:", event.Name)
-				// log.Println("Restarting main.go ...")
+				log.Println("Modified file:", event.Name)
+				log.Print("Restarting go program ...\n\n")
 
-				fmt.Println("Killing process ", restartingCmd.Process.Pid)
 				syscall.Kill(-restartingCmd.Process.Pid, syscall.SIGKILL)
 				restartingCmd.Wait()
 
-				restartingCmd = startCommand(config)
+				restartingCmd = startCommand()
 			}
 
-		case err, ok := <-fileWatcher.Errors:
+		case err, ok := <-watcher.Errors:
 			if !ok {
 				return
 			}
@@ -97,13 +96,13 @@ func findDirectories(dir string, directories *[]string) {
 func getConfig() *Config {
 	config := &Config{}
 
-	// Get working directory flag
+	// Get flags
 	command := flag.String("cmd", "", "Provide a command to execute and restart. If nothing is set, this defaults to \"go run $path/*.go\"")
 	workingDir := flag.String("p", "", "Provide the full path to your working directory")
-	recursive := flag.Bool("r", true, "Search through the working directory recursively for file changes")
+	recursive := flag.Bool("r", true, "Search through the working directory recursively for file changes (set to true or false")
 	flag.Parse()
 
-	// Check if parameter was empty
+	// Check if parameters are empty
 	if *workingDir == "" {
 		flag.Usage()
 		os.Exit(1)
@@ -112,7 +111,7 @@ func getConfig() *Config {
 	if *command == "" {
 		files, err := filepath.Glob(filepath.Join(*workingDir, "*.go"))
 		if err != nil {
-			log.Fatalf("Error looking fo go files: %s\n", err.Error())
+			log.Fatalf("Error looking for go files: %s\n", err.Error())
 		}
 
 		if len(files) < 1 {
@@ -124,14 +123,12 @@ func getConfig() *Config {
 
 	// TODO: What about paths with " " in their name?
 	commandParts := strings.Split(*command, " ")
-	// fmt.Printf("CMD %#v\n", commandParts)
 	config.Command = commandParts[0]
 	config.CommandArguments = commandParts[1:]
 
 	config.WatchDirectories = make([]string, 0, 10)
 	if *recursive {
 		// Recursively search for folders
-		// fmt.Print("Recursively searching ", *workingDir, "\n")
 		findDirectories(*workingDir, &config.WatchDirectories)
 	} else {
 		config.WatchDirectories = append(config.WatchDirectories, *workingDir)
@@ -140,34 +137,34 @@ func getConfig() *Config {
 	return config
 }
 
-func startCommand(config *Config) *exec.Cmd {
+func startCommand() *exec.Cmd {
 	restartingCmd := exec.Command(config.Command, config.CommandArguments...)
 	restartingCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	restartingCmd.Stdout = os.Stdout
 
-	// log.Printf("Starting %v/main.go\n", *workingDir)
 	err := restartingCmd.Start()
 	if err != nil {
 		log.Fatal("Something went wrong!")
 	}
 
-	fmt.Println("Starting process ", restartingCmd.Process.Pid)
-
 	return restartingCmd
 }
 
-func killOnSignal(running *bool, restartingCmd **exec.Cmd) {
+func killOnSignal() {
 	chanSigInt := make(chan os.Signal)
-	signal.Notify(chanSigInt, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(chanSigInt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 
 	<-chanSigInt
-	*running = false
+	running = false
 
-	cmd := *restartingCmd
+	fmt.Println("Signal caught, Killing process", restartingCmd.Process.Pid)
 
-	fmt.Println("Signal caught, Killing process ", cmd.Process.Pid)
-	syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-	cmd.Wait()
+	err := syscall.Kill(-restartingCmd.Process.Pid, syscall.SIGKILL)
+	if err != nil {
+		killOnSignal()
+	}
+
+	restartingCmd.Wait()
 
 	os.Exit(0)
 }
