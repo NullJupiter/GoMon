@@ -35,14 +35,14 @@ The `r` flag is can be set to true or false. When set to `true` (by default) GoM
 `./gomon -p $(pwd) -r=false`
 
 
-##### Command Line Agruments
+### Command Line Agruments Summary
 
  - `-p` - The path to the go files to be watched, run and restarted
  - `-r` - Watch the folder given with the `p`-flag recursively
  - `-cmd` - [Optional] The program to be run - in case it should different from the go files given with `-p`
  - `-q` - Do not output anything to the console
 
-##### Test Programs
+### Test Programs
 
 Test programs to verify how GoMon works can be found in the folders [/test/loop](/test/loop) and [/test/once](/test/once).
 
