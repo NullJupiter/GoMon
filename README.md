@@ -15,7 +15,7 @@ You need to provide at least one path to a directory you want to monitor.
 
 
 
-There are also two optional flags: `-cmd` and `-r`.
+There are also two optional flags: `-cmd`, `-r` and `-q`.
 
 
 
@@ -24,6 +24,7 @@ The `cmd` flag is used to run another program for example which executes some ot
 ##### run.sh:
 `echo "Starting some stuff before entering the program...";`
 `go run *.go;`
+
 ##### Example:
 `gomon -cmd "bash run.sh" $(pwd)`
 
@@ -37,10 +38,10 @@ The `r` flag is can be set to true or false. When set to `true` (by default) GoM
 
 ### Command Line Agruments Summary
 
- - `-p` - The path to the go files to be watched, run and restarted
  - `-r` - Watch the folder given with the `p`-flag recursively
  - `-cmd` - [Optional] The program to be run - in case it should different from the go files given with `-p`
  - `-q` - Do not output anything to the console
+ - `directory [directories...]` - At least one path to the files to be watched, in case `-cmd` is not set the filees in the first directory will be run and restarted
 
 ##### Test Programs
 
