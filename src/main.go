@@ -20,14 +20,16 @@ type Config struct {
 	WatchDirectories []string
 	Command          string
 	CommandArguments []string
+	Log              bool
 }
 
 // Global variables.
 var running = true
 var config = getConfig()
-var restartingCmd = startCommand()
+var restartingCmd *exec.Cmd
 
 func main() {
+	restartingCmd = startCommand()
 
 	go killOnSignal()
 
@@ -60,8 +62,10 @@ func watchFiles(watcher *fsnotify.Watcher) {
 				return
 			}
 			if event.Op&fsnotify.Write == fsnotify.Write {
-				log.Println("Modified file:", event.Name)
-				log.Print("Restarting go program ...\n\n")
+				if config.Log {
+					log.Println("Modified file:", event.Name)
+					log.Print("Restarting go program ...\n\n")
+				}
 
 				syscall.Kill(-restartingCmd.Process.Pid, syscall.SIGKILL)
 				restartingCmd.Wait()
@@ -100,7 +104,10 @@ func getConfig() *Config {
 	command := flag.String("cmd", "", "Provide a command to execute and restart. If nothing is set, this defaults to \"go run $path/*.go\"")
 	workingDir := flag.String("p", "", "Provide the full path to your working directory")
 	recursive := flag.Bool("r", true, "Search through the working directory recursively for file changes (set to true or false")
+	quiet := flag.Bool("q", false, "Be quiet. Do not output anything to the standard output. (Errors are still displayed.)")
 	flag.Parse()
+
+	config.Log = !*quiet
 
 	// Check if parameters are empty
 	if *workingDir == "" {
@@ -157,7 +164,9 @@ func killOnSignal() {
 	<-chanSigInt
 	running = false
 
-	fmt.Println("Signal caught, Killing process", restartingCmd.Process.Pid)
+	if config.Log {
+		fmt.Println("Signal caught, Killing process", restartingCmd.Process.Pid)
+	}
 
 	err := syscall.Kill(-restartingCmd.Process.Pid, syscall.SIGKILL)
 	if err != nil {
