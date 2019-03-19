@@ -1,7 +1,6 @@
 # GoMon - A file monitoring tool for Go/Golang
 
 ## Not finished yet ! ! !
-##### There is a bug that you can only run programs that never end until there is an interrupt like programs with a endless loop or HTTP Servers. Programs that give an output and then close themselves cannot be run by this program yet.
 
 ### Description
 This is a program which allows you to push your productivity progress by monitoring your working directory and restarting the go files on changes. It is something similar like nodemon for NodeJS.
@@ -35,6 +34,30 @@ The `r` flag is can be set to true or false. When set to `true` (by default) GoM
 ##### Example:
 `./gomon -p $(pwd) -r=false`
 
+
+##### Command Line Agruments
+
+ - `-p` - The path to the go files to be watched, run and restarted
+ - `-r` - Watch the folder given with the `p`-flag recursively
+ - `-cmd` - [Optional] The program to be run - in case it should different from the go files given with `-p`
+ - `-q` - Do not output anything to the console
+
+##### Test Programs
+
+Test programs to verify how GoMon works can be found in the folders [/test/loop](/test/loop) and [/test/once](/test/once).
+
+ - `/test/loop` Prints a "!" when started and then a "." every second until the process is stopped
+ - `/test/once` Prints a message, then waits 5 seconds and exits
+
+Run the test programs from the `src` folder like this:
+
+ - `go run main.go -p ../test/loop/`
+ - `go run main.go -p ../test/once/`
+
+
+### ToDos and known bugs
+
+ - The recursive folder watcher does not detect new folders.
 
 
 ### What I learned
