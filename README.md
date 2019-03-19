@@ -1,4 +1,4 @@
-# Gomon
+# GoMon - A file monitoring tool for Go/Golang
 
 ## Not finished yet ! ! !
 ##### There is a bug that you can only run programs that never end until there is an interrupt like programs with a endless loop or HTTP Servers. Programs that give an output and then close themselves cannot be run by this program yet.
@@ -20,11 +20,11 @@ There are also two optional flags: `-cmd` and `-r`.
 
 
 
-The `cmd` flag is used to run for example another program which executes some other stuff and then calls the go run *.go. The `cmd` flag is set to `go run $path/*.go`.
+The `cmd` flag is used to run another program for example which executes some other stuff and then calls `go run *.go`. The `cmd` flag is set to `go run $path/*.go`.
 
 ##### run.sh:
-`echo "Starting some stuff before entering the program...";
-go run *.go;`
+`echo "Starting some stuff before entering the program...";`
+`go run *.go;`
 ##### Example:
 `./gomon -p $(pwd) -cmd "bash run.sh"`
 
