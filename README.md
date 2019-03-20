@@ -36,12 +36,13 @@ The `r` flag is can be set to true or false. When set to `true` (by default) GoM
 `gomon -r=false $(pwd)`
 
 
-### Command Line Agruments Summary
+### Command Line Arguments Summary
 
  - `-r` - Watch the folder given with the `p`-flag recursively
  - `-cmd` - [Optional] The program to be run - in case it should different from the go files given with `-p`
  - `-q` - Do not output anything to the console
  - `directory [directories...]` - At least one path to the files to be watched, in case `-cmd` is not set the filees in the first directory will be run and restarted
+ - `--` - Used to separate arguments for the program from the list of directories. Everything after `--` will be given to the go program that is started.
 
 ##### Test Programs
 
@@ -58,7 +59,7 @@ Run the test programs from the `src` folder like this:
 
 ### ToDos and known bugs
 
- - The recursive folder watcher does not detect new folders.
+ - Sometimes the child process is not killed when gomon is stopped by SIGINT
 
 
 ### What I learned

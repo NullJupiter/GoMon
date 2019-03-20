@@ -17,16 +17,19 @@ import (
 
 // Config is a type to configure the program.
 type Config struct {
-	WatchDirectories []string
+	Directories      []string
 	Command          string
 	CommandArguments []string
 	Log              bool
+	Recursive        bool
 }
 
 // Global variables.
 var running = true
 var config = getConfig()
 var restartingCmd *exec.Cmd
+var watchDirectories = make([]string, 0)
+var watcher *fsnotify.Watcher
 
 func main() {
 	// Start the process for the first time
@@ -35,29 +38,51 @@ func main() {
 	// Listen to interrupt, terminate and kill signal to kill the process and exit
 	go killOnSignal()
 
+	refreshWatcher()
+
+	// Start monitoring files
+	go watchFiles()
+
+	// Wait forever
+	done := make(chan bool)
+	<-done
+
+	watcher.Close()
+}
+
+func refreshWatcher() {
+	if watcher != nil {
+		watcher.Close()
+	}
+
 	// Create file watcher
-	fileWatcher, err := fsnotify.NewWatcher()
+	var err error
+	watcher, err = fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer fileWatcher.Close()
 
-	// Start monitoring files
-	go watchFiles(fileWatcher)
+	if config.Recursive {
+		// Recursively search for folders
+		for _, dir := range config.Directories {
+			findDirectories(dir, &watchDirectories)
+		}
+	} else {
+		for _, dir := range config.Directories {
+			watchDirectories = append(watchDirectories, dir)
+		}
+	}
 
-	for _, dir := range config.WatchDirectories {
-		err = fileWatcher.Add(dir)
+	for _, dir := range watchDirectories {
+		err := watcher.Add(dir)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	// Wait forever
-	done := make(chan bool)
-	<-done
 }
 
-func watchFiles(watcher *fsnotify.Watcher) {
+func watchFiles() {
 	// Monitor files until running is set to false
 	for running {
 		select {
@@ -65,8 +90,23 @@ func watchFiles(watcher *fsnotify.Watcher) {
 			if !ok {
 				return
 			}
+			if event.Op&fsnotify.Create == fsnotify.Create {
+				file, err := os.Stat(event.Name)
+				if err == nil && file.IsDir() {
+					watcher.Add(event.Name) // TODO: Recursive?
+				}
+			}
+
+			if event.Op&fsnotify.Remove == fsnotify.Remove {
+				file, err := os.Stat(event.Name)
+				if err == nil && file.IsDir() {
+					refreshWatcher()
+				}
+
+			}
+
 			// Catch write event (when file is saved/changed)
-			if event.Op&fsnotify.Write == fsnotify.Write {
+			if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Rename == fsnotify.Rename {
 				if config.Log {
 					log.Println("Modified file:", event.Name)
 					log.Print("Restarting go program ...\n\n")
@@ -114,10 +154,25 @@ func getConfig() *Config {
 	quiet := flag.Bool("q", false, "Be quiet. Do not output anything to the standard output. (Errors are still displayed.)")
 	flag.Parse()
 
-	directories := flag.Args()
+	arguments := flag.Args()
+
+	config.Recursive = *recursive
+
+	config.Directories = make([]string, 0)
+	cmdArgs := make([]string, 0)
+
+	targetSlice := &config.Directories
+	for _, arg := range arguments {
+		if arg == "--" {
+			targetSlice = &cmdArgs
+			continue
+		}
+		*targetSlice = append(*targetSlice, arg)
+	}
+
 	// Add the first argument od flag.Args() corresponding to the working directory
-	if len(directories) > 0 {
-		workingDir = directories[0]
+	if len(config.Directories) > 0 {
+		workingDir = config.Directories[0]
 	}
 
 	// Output information if not set to quiet
@@ -150,17 +205,8 @@ func getConfig() *Config {
 	commandParts := strings.Split(*command, " ")
 	config.Command = commandParts[0]
 	config.CommandArguments = commandParts[1:]
-
-	config.WatchDirectories = make([]string, 0, 10)
-	if *recursive {
-		// Recursively search for folders
-		for _, dir := range directories {
-			findDirectories(dir, &config.WatchDirectories)
-		}
-	} else {
-		for _, dir := range directories {
-			config.WatchDirectories = append(config.WatchDirectories, dir)
-		}
+	if len(cmdArgs) > 0 {
+		config.CommandArguments = append(config.CommandArguments, cmdArgs...)
 	}
 
 	return config
