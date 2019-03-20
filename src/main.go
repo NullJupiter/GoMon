@@ -29,17 +29,20 @@ var config = getConfig()
 var restartingCmd *exec.Cmd
 
 func main() {
+	// Start the process for the first time
 	restartingCmd = startCommand()
 
+	// Listen to interrupt, terminate and kill signal to kill the process and exit
 	go killOnSignal()
 
-	// Monitor file changes
+	// Create file watcher
 	fileWatcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer fileWatcher.Close()
 
+	// Start monitoring files
 	go watchFiles(fileWatcher)
 
 	for _, dir := range config.WatchDirectories {
@@ -55,18 +58,20 @@ func main() {
 }
 
 func watchFiles(watcher *fsnotify.Watcher) {
+	// Monitor files until running is set to false
 	for running {
 		select {
 		case event, ok := <-watcher.Events:
 			if !ok {
 				return
 			}
+			// Catch write event (when file is saved/changed)
 			if event.Op&fsnotify.Write == fsnotify.Write {
 				if config.Log {
 					log.Println("Modified file:", event.Name)
 					log.Print("Restarting go program ...\n\n")
 				}
-
+				// Restart process
 				syscall.Kill(-restartingCmd.Process.Pid, syscall.SIGKILL)
 				restartingCmd.Wait()
 
@@ -83,6 +88,7 @@ func watchFiles(watcher *fsnotify.Watcher) {
 }
 
 func findDirectories(dir string, directories *[]string) {
+	// Search for directories in working directory an append them to the directories variable slice
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		log.Fatalf("Error reading directory %s: %s\n", dir, err.Error())
@@ -109,7 +115,7 @@ func getConfig() *Config {
 	flag.Parse()
 
 	directories := flag.Args()
-
+	// Add the first argument od flag.Args() corresponding to the working directory
 	if len(directories) > 0 {
 		workingDir = directories[0]
 	}
@@ -126,6 +132,7 @@ func getConfig() *Config {
 		os.Exit(1)
 	}
 
+	// Get all go files in directory
 	if *command == "" {
 		files, err := filepath.Glob(filepath.Join(workingDir, "*.go"))
 		if err != nil {
@@ -160,10 +167,12 @@ func getConfig() *Config {
 }
 
 func startCommand() *exec.Cmd {
+	// Put the command together
 	restartingCmd := exec.Command(config.Command, config.CommandArguments...)
 	restartingCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	restartingCmd.Stdout = os.Stdout
-
+	restartingCmd.Stderr = os.Stderr
+	// Start the process
 	err := restartingCmd.Start()
 	if err != nil {
 		log.Fatal("Something went wrong!")
@@ -173,9 +182,10 @@ func startCommand() *exec.Cmd {
 }
 
 func killOnSignal() {
+	// Create channel to be notified when gomon is being interrupted, terminated or killed
 	chanSigInt := make(chan os.Signal)
 	signal.Notify(chanSigInt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
-
+	// Block until channel is notified
 	<-chanSigInt
 	running = false
 
@@ -183,11 +193,13 @@ func killOnSignal() {
 		fmt.Println("Signal caught, Killing process", restartingCmd.Process.Pid)
 	}
 
+	// Kill background proccess
 	err := syscall.Kill(-restartingCmd.Process.Pid, syscall.SIGKILL)
 	if err != nil {
+		// If killing the proccess try it again and wait for next interrupt, termination or kill
 		killOnSignal()
 	}
-
+	// Wait until process is actually killed
 	restartingCmd.Wait()
 
 	os.Exit(0)
