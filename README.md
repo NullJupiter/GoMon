@@ -58,9 +58,3 @@ Run the test programs from the `src` folder like this:
 ### ToDos and known bugs
 
  - Sometimes the child process is not killed when gomon is stopped by SIGINT
-
-
-### What I learned
-- how to use the fsnotify package
-- how to program with flags and parse them
-- how file monitoring works in general
