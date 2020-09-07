@@ -1,7 +1,5 @@
 # GoMon - A file monitoring tool for Go/Golang
 
-## Not finished yet ! ! !
-
 ### Description
 This is a program which allows you to push your productivity progress by monitoring your working directory and restarting the go files on changes. It is something similar like nodemon for NodeJS.
 
